@@ -1,3 +1,4 @@
+import boto3
 from lxml import html
 import requests
 from elastic import product_creator
@@ -31,5 +32,17 @@ def fetch_and_store(url):
         images
     )
 
+sqs = boto3.resource('sqs')
+queue = sqs.get_queue_by_name(QueueName='essense_products')
 
-fetch_and_store('https://www.essensedesigns.com/essense-of-australia/wedding-dresses/d2027/')
+while queue.receive_messages(1):
+    for message in queue.receive_messages(10):
+        print("Processing " + message.body)
+        try:
+            fetch_and_store(message.body)
+        except Exception:
+            print("Processing failed for " + message.body + " returning item to the queue")
+            continue
+
+        message.delete()
+
